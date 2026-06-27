@@ -1,0 +1,26 @@
+autoload -Uz compinit
+autoload -Uz vcs_info
+
+compinit
+
+# Prompt string configuration
+
+function precmd {
+    vcs_info
+}
+
+function setps {
+    PS1='%F{%(?.green.red)}%1~%f %B›%b '
+    RPS1="%F{red}${vcs_info_msg_0_}%f"
+}
+
+zstyle ':vcs_info:git:*' formats '%b'
+setopt PROMPT_SUBST
+
+precmd_functions+=(setps)
+
+# Tab-Completion configuration
+
+zstyle ':completion:*:options' list-colors '=(#b)*(-- *)=1;38;5;13=38;5;45' '=*=1;38;5;13'
+zstyle ':completion:*' use-compctl false
+zstyle ':compinstall' filename "$HOME/.zshrc"
