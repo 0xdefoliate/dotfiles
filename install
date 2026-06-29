@@ -1,0 +1,48 @@
+#!/bin/zsh
+
+function warning {
+    printf "The following files will be irreversibly modified:\n"
+
+    for file in "$@"; do
+        printf "  * %s\n" "$file"
+    done
+
+    printf "\n"
+    printf "Do you want to proceed? [type 'YES' to accept]: "
+    read -r
+
+    if [[ $REPLY != "YES" ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
+function install {
+    local dotfiles_base_dir="$1"
+
+    cp "$dotfiles_base_dir/config/zshrc" ~/.zshrc
+    cp "$dotfiles_base_dir/config/vimrc" ~/.vimrc
+}
+
+function main {
+    local script_path="${0:A}"
+
+    local modifies=(
+        "$HOME/.zshrc"
+        "$HOME/.vimrc"
+    )
+
+    if ! warning "${modifies[@]}"; then
+        printf "Quitting... your existing configuration has been left untouched.\n"
+        exit
+    fi
+
+    install "$(dirname "$script_path")"
+}
+
+main "$@"
+
+unset warning
+unset install
+unset main
