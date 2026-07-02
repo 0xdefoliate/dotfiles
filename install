@@ -18,11 +18,33 @@ function warning {
     return 0
 }
 
+function install_extension {
+    local ext_path
+    ext_path=$1
+
+    local ext_name
+    ext_name="$(basename "$extension_path" | cut -d '.' -f 1)"
+
+    # shellcheck disable=SC1090
+    source "$ext_path"
+
+    local output
+    output="$(extension_"$ext_name")"
+
+    printf "%s\n%s\n%s\n" "# Extension '$ext_name'" "$output" "# End '$ext_name'" >> ~/.zshrc
+}
+
 function install {
     local dotfiles_base_dir="$1"
 
     cp "$dotfiles_base_dir/config/zshrc" ~/.zshrc
     cp "$dotfiles_base_dir/config/vimrc" ~/.vimrc
+
+    printf "\n\n# Dynamic Extensions\n\n" >> ~/.zshrc
+
+    for extension_path in "$dotfiles_base_dir"/extensions/*; do
+        install_extension "$extension_path"
+    done
 }
 
 function main {
@@ -44,5 +66,6 @@ function main {
 main "$@"
 
 unset warning
+unset install_extension
 unset install
 unset main
