@@ -1,5 +1,13 @@
 #!/bin/zsh
 
+function import {
+    local dotfiles_base_dir
+    dotfiles_base_dir="$(dirname "${0:A}")"
+
+    # shellcheck disable=SC1090
+    source "$dotfiles_base_dir/$1"
+}
+
 function warning {
     printf "The following files will be irreversibly modified:\n"
 
@@ -40,6 +48,10 @@ function install {
     cp "$dotfiles_base_dir/config/zshrc" ~/.zshrc
     cp "$dotfiles_base_dir/config/vimrc" ~/.vimrc
 
+    if ssh::has_config; then
+        cp "$dotfiles_base_dir/config/sshconfig" ~/.ssh/config
+    fi
+
     printf "\n\n# Dynamic Extensions\n\n" >> ~/.zshrc
 
     for extension_path in "$dotfiles_base_dir"/extensions/*; do
@@ -49,22 +61,30 @@ function install {
 
 function main {
     local script_path="${0:A}"
+    local dotfiles_base_dir
+    dotfiles_base_dir="$(dirname "$script_path")"
 
     local modifies=(
         "$HOME/.zshrc"
         "$HOME/.vimrc"
     )
 
+    if ssh::has_config; then
+        modifies+=("$HOME/.ssh/config")
+    fi
+
     if ! warning "${modifies[@]}"; then
         printf "Quitting... your existing configuration has been left untouched.\n"
         exit
     fi
 
-    install "$(dirname "$script_path")"
+    install "$dotfiles_base_dir"
 }
 
+import lib/ssh.zsh
 main "$@"
 
+unset import
 unset warning
 unset install_extension
 unset install

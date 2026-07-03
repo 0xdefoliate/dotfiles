@@ -1,0 +1,4 @@
+Host *
+    IdentityAgent none
+    IdentitiesOnly yes
+    UseKeychain no
