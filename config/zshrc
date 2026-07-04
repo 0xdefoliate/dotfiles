@@ -24,3 +24,23 @@ precmd_functions+=(setps)
 zstyle ':completion:*:options' list-colors '=(#b)*(-- *)=1;38;5;13=38;5;45' '=*=1;38;5;13'
 zstyle ':completion:*' use-compctl false
 zstyle ':compinstall' filename "$HOME/.zshrc"
+
+# Vi-Mode
+
+bindkey -v
+
+KEYTIMEOUT=5
+
+function zle-keymap-select {
+    if [[ $KEYMAP == "vicmd" ]]; then
+        printf '\e[3 q' # underscore
+    fi
+
+    if [[ $KEYMAP == "main" || $KEYMAP == "viins" ]]; then
+        printf '\e[5 q' # beam
+    fi
+}
+
+zle -N zle-keymap-select
+
+printf '\e[5 q' # default mode is INSERT
