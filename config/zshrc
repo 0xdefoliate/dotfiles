@@ -44,3 +44,6 @@ function zle-keymap-select {
 zle -N zle-keymap-select
 
 printf '\e[5 q' # default mode is INSERT
+
+# resolves #6
+bindkey -M viins "^?" backward-delete-char
