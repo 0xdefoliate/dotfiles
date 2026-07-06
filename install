@@ -27,35 +27,41 @@ function warning {
 }
 
 function install_extension {
-    local ext_path
-    ext_path=$1
+    local ext_path="$1"
+    local out_file="$2"
 
     local ext_name
-    ext_name="$(basename "$extension_path" | cut -d '.' -f 1)"
+    ext_name="$(basename "$extension_path")"
 
     # shellcheck disable=SC1090
-    source "$ext_path"
+    source "$ext_path/extension.zsh"
+    extension::"$ext_name"
 
     local output
-    output="$(extension_"$ext_name")"
+    output="$(cat "$extension_path/template.zsh")"
 
-    printf "%s\n%s\n%s\n" "# Extension '$ext_name'" "$output" "# End '$ext_name'" >> ~/.zshrc
+    printf "\n%s\n%s\n%s\n" "# Extension '$ext_name'" "$output" "# End '$ext_name'" >> "$out_file"
 }
 
 function install {
     local dotfiles_base_dir="$1"
+    shift
 
-    cp "$dotfiles_base_dir/config/zshrc" ~/.zshrc
+    local autoloads=("$@")
+
+    cp "$dotfiles_base_dir/zshrc/base.zsh" ~/.zshrc
     cp "$dotfiles_base_dir/config/vimrc" ~/.vimrc
 
     if ssh::has_config; then
         cp "$dotfiles_base_dir/config/sshconfig" ~/.ssh/config
     fi
 
-    printf "\n\n# Dynamic Extensions\n\n" >> ~/.zshrc
+    for autoload in "${autoloads[@]}"; do
+        printf "autoload -Uz %s\n" "$autoload" >> ~/.zshrc
+    done
 
-    for extension_path in "$dotfiles_base_dir"/extensions/*; do
-        install_extension "$extension_path"
+    for extension_path in $(ls_ext "$dotfiles_base_dir" --with-paths); do
+        install_extension "$extension_path" ~/.zshrc
     done
 }
 
@@ -63,6 +69,8 @@ function main {
     local script_path="${0:A}"
     local dotfiles_base_dir
     dotfiles_base_dir="$(dirname "$script_path")"
+
+    local autoloads=()
 
     local modifies=(
         "$HOME/.zshrc"
@@ -73,15 +81,34 @@ function main {
         modifies+=("$HOME/.ssh/config")
     fi
 
+    for extension in $(ls_ext "$dotfiles_base_dir" --with-paths); do
+        . "$extension"/extension.zsh
+
+        modifies=("${modifies[@]}" "${MODIFIES[@]}")
+        unset MODIFIES
+
+        autoloads=("${autoloads[@]}" "${AUTOLOADS[@]}")
+        unset AUTOLOADS
+    done
+
+    # remove duplicates.
+    # We disable shellcheck here, because while the highlighted issue is valid,
+    # other solutions are unnecessarily bulky.
+    #
+    # shellcheck disable=SC2207
+    autoloads=($(printf "%s\n" "${autoloads[@]}" | sort -u))
+
     if ! warning "${modifies[@]}"; then
         printf "Quitting... your existing configuration has been left untouched.\n"
         exit
     fi
 
-    install "$dotfiles_base_dir"
+    install "$dotfiles_base_dir" "${autoloads[@]}"
 }
 
 import lib/ssh.zsh
+import lib/extension.zsh
+
 main "$@"
 
 unset import
