@@ -3,8 +3,13 @@ function precmd {
 }
 
 function setps {
-    PS1='%F{%(?.green.red)}%1~%f %B›%b '
-    RPS1="%F{red}${vcs_info_msg_0_}%f"
+    PS1=""
+
+    if [ -n "$vcs_info_msg_0_" ]; then
+        PS1="=> %B${vcs_info_msg_0_}%b"$'\n'
+    fi
+
+    PS1+='%F{%(?.green.red)}%1~%f %B›%b '
 }
 
 zstyle ':vcs_info:git:*' formats '%b'
