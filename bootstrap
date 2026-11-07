@@ -1,0 +1,130 @@
+#!/usr/bin/env zsh
+
+SCRIPT_DIRECTORY=$(dirname "${0:A}")
+SCRIPT_FILENAME=$(basename "${0:A}")
+
+function util::list_extensions {
+    local extensions_lf_separated
+    extensions_lf_separated=$(realpath "$SCRIPT_DIRECTORY"/zshrc/extensions/*.extension.zsh)
+
+    # realpath returns files separated by newline, so make it delimited to whitespace instead.
+    echo "${extensions_lf_separated//$'\n'/ }"
+}
+
+function util::echo_function_source {
+    # use `sed` to remove first and last line, which are not part of the function body.
+    declare -f "$1" | sed '1d;$d'
+}
+
+function util::usage {
+    printf "usage: %s [--outdir directory]\n" "$SCRIPT_FILENAME"
+}
+
+function installer::warning {
+    printf "This bootstrapping script will completely change your environment...\n"
+    printf "Make sure you have a backup of your Zshrc, etc.\n"
+    printf "\n"
+
+    printf "Do you want to proceed? [type 'YES' to accept]: "
+    read -r
+
+    if [[ $REPLY != "YES" ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
+function installer::zshrc::inject_extension {
+    local ext_path="$1"
+    local out_file="$2"
+
+    local ext_name
+    ext_name="$(basename "$extension_path")"
+
+    # shellcheck disable=SC1090
+    source "$ext_path"
+
+    local source 
+    source="$(util::echo_function_source zshrc)"
+
+    printf "\n%s\n%s\n%s\n" "# Extension '$ext_name'" "$source" "# End '$ext_name'" >> "$out_file"
+}
+
+function installer::install {
+    local dotfiles_base_dir="$1"
+    local out_dir="$2"
+
+    # magic to make Zsh interpret the rest of the arguments as a single array
+    shift; shift
+    local autoloads=("$@")
+
+    echo '# THIS FILE IS AUTO-GENERATED, AND ANY MANUAL CHANGES MAY GET REMOVED WITHOUT WARNING!' \
+        > "$out_dir"/.zshrc
+
+    cp "$dotfiles_base_dir/vimrc/vimrc" "$out_dir"/.vimrc
+
+    # Re-add later...
+    # cp "$dotfiles_base_dir/config/sshconfig" ~/.ssh/config
+
+    for autoload in "${autoloads[@]}"; do
+        printf "autoload -Uz %s\n" "$autoload" >> "$out_dir"/.zshrc
+    done
+
+    for extension_path in $(util::list_extensions "$dotfiles_base_dir"); do
+        installer::zshrc::inject_extension "$extension_path" "$out_dir"/.zshrc
+    done
+}
+
+function main {
+
+    local out_dir="$HOME"
+
+    while [ $# -gt 0 ]; do
+        case $1 in
+          --outdir)
+              out_dir="$2"
+              shift; shift
+
+              mkdir -p "$out_dir"
+              ;;
+          *)
+            util::usage
+            exit 1
+        esac
+    done
+    
+    local script_path="${0:A}"
+    local dotfiles_base_dir
+    dotfiles_base_dir="$(dirname "$script_path")"
+
+    local autoloads=()
+
+    local extensions
+    # shellcheck disable=SC2207
+    extensions=($(util::list_extensions))
+
+    for extension in "${extensions[@]}"; do
+        source "$extension"
+
+        autoloads=("${autoloads[@]}" "${AUTOLOADS[@]}")
+        unset AUTOLOADS
+    done
+
+    # remove duplicates.
+    # We disable shellcheck here, because while the highlighted issue is valid,
+    # other solutions are unnecessarily bulky.
+    #
+    # shellcheck disable=SC2207
+    autoloads=($(printf "%s\n" "${autoloads[@]}" | sort -u))
+
+    if ! installer::warning; then
+        printf "Aborting... your existing configuration has been left untouched.\n"
+        exit
+    fi
+    
+    installer::install "$dotfiles_base_dir" "$out_dir" "${autoloads[@]}"
+}
+
+
+main "$@"

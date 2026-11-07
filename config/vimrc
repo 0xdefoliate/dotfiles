@@ -1,4 +1,0 @@
-set shiftwidth=4 smarttab
-set expandtab
-set tabstop=32 softtabstop=32
-syntax on

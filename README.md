@@ -28,7 +28,7 @@ You can install the configurations and apply them by performing the following st
 $ git clone https://github.com/0xdefoliate/dotfiles
 ...
 # start installation (i.e. overwriting your existing configuration)
-$ cd dotfiles && ./install
+$ cd dotfiles && ./bootstrap
 ...
 # don't forget to source your ~/.zshrc again for changes to take effect in your current shell session.
 $ . ~/.zshrc

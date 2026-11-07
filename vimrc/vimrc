@@ -1,0 +1,7 @@
+set shiftwidth=4 smarttab
+set expandtab
+
+" Set \t tabstops to 32 to make it painfully noticeable, since we don't want them.
+set tabstop=32 softtabstop=32
+
+syntax on
