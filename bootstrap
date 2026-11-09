@@ -48,7 +48,32 @@ function installer::zshrc::inject_extension {
     local source 
     source="$(util::echo_function_source zshrc)"
 
+    if [[ -n "$REQUIRED_PROGRAMS" ]]; then
+
+        # add indentation to if-statement
+        local injected_conditional="if"
+
+        for requirement in $REQUIRED_PROGRAMS; do
+            injected_conditional="$injected_conditional command -v $requirement &>/dev/null &&"
+        done
+
+        # remove the trailing "&&" which would otherwise make the syntax invalid.
+        injected_conditional="$(python3 -c "print('$injected_conditional'[0:-3])")"
+        injected_conditional="$injected_conditional; then"
+
+        source="$(printf "%s\n%s" "$injected_conditional" "$source")"
+
+        # add indentation to if-body for easier readability
+        # shellcheck disable=SC2001
+        source="$(echo "$source" | sed 's/^/    /')"
+
+        # add required "fi" with indentation
+        source="$(printf "%s\n%s" "$source" '    fi')"
+    fi
+
     printf "\n%s\n%s\n%s\n" "# Extension '$ext_name'" "$source" "# End '$ext_name'" >> "$out_file"
+
+    unset REQUIRED_PROGRAMS
 }
 
 function installer::install {
@@ -59,7 +84,7 @@ function installer::install {
     shift; shift
     local autoloads=("$@")
 
-    echo '# THIS FILE IS AUTO-GENERATED, AND ANY MANUAL CHANGES MAY GET REMOVED WITHOUT WARNING!' \
+    echo '# THIS FILE IS AUTO-GENERATED: ANY MANUAL CHANGES MAY GET REMOVED WITHOUT WARNING!' \
         > "$out_dir"/.zshrc
 
     cp "$dotfiles_base_dir/vimrc/vimrc" "$out_dir"/.vimrc
@@ -68,7 +93,12 @@ function installer::install {
     # cp "$dotfiles_base_dir/config/sshconfig" ~/.ssh/config
 
     for autoload in "${autoloads[@]}"; do
-        printf "autoload -Uz %s\n" "$autoload" >> "$out_dir"/.zshrc
+        # Any completion functions should be fully ready early on.
+        if [[ $autoload == "compinit" || "$autoload" == "bashcompinit" ]]; then
+            printf "autoload -Uz %s && %s\n" "$autoload" "$autoload" >> "$out_dir/.zshrc"
+        else
+            printf "autoload -Uz %s\n" "$autoload" >> "$out_dir"/.zshrc
+        fi
     done
 
     for extension_path in $(util::list_extensions "$dotfiles_base_dir"); do
